@@ -1,0 +1,1047 @@
+<style>
+  /* 全局設置，避免 padding 撐破容器寬度 */
+  * {
+    box-sizing: border-box;
+  }
+
+  .gallery-container {
+    position: relative;
+    width: 100%; /* 改為 100% 自適應寬度 */
+    max-width: 800px;
+    aspect-ratio: 16 / 10; /* 取代固定的 500px 高度，按比例自動縮放 */
+    margin: auto;
+    overflow: hidden;
+    border-radius: 10px;
+    background-color: #f0f0f0; /* 載入時的底色 */
+  }
+
+  .slider {
+    display: flex;
+    transition: transform 0.5s ease-in-out;
+    width: 100%;
+    height: 100%; /* 確保填滿容器 */
+  }
+
+  .slide {
+    min-width: 100%;
+    width: 100%;
+    height: 100%;
+    flex-shrink: 0;
+  }
+
+  .slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* 讓圖片完整覆蓋且不變形 */
+    display: block;
+  }
+
+  .slide video {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+    background-color: #000;
+  }
+
+  /* 按鈕樣式 */
+  .btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0,0,0,0.5);
+    color: white;
+    border: none;
+    padding: 15px 20px; /* 加大觸控面積 */
+    cursor: pointer;
+    z-index: 10;
+    border-radius: 5px;
+  }
+  
+  .btn:hover {
+    background: rgba(0,0,0,0.8);
+  }
+
+  .prev { left: 10px; }
+  .next { right: 10px; }
+
+  /* =========================================
+     【全新新增】文字輪播專用樣式
+     ========================================= */
+  .text-slider-container {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    padding: 10px 0; /* 【修改這裡】取消原來的左右 45px，改為 0 */
+    background: #fafafa;
+    border-left: 4px solid #4a90e2; 
+    border-radius: 4px;
+    margin: 15px 0;
+  }
+
+  /* 2. 【全新新增】專門針對文字輪播裡的 slide 設定內距 */
+  .text-slider-container .slide {
+    padding: 0 50px; /* 把左右留白移到這裡，留出空間給按鈕，且能推開相鄰的 slide */
+    box-sizing: border-box; /* 確保 padding 不會撐破 100% 寬度 */
+  }
+  
+  .text-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(74, 144, 226, 0.15);
+    color: #4a90e2;
+    border: none;
+    padding: 12px 15px;
+    cursor: pointer;
+    z-index: 10;
+    border-radius: 5px;
+    transition: all 0.2s ease;
+  }
+
+  .text-btn:hover {
+    background: rgba(74, 144, 226, 0.8);
+    color: white;
+  }
+
+  .text-btn.prev { left: 5px; }
+  .text-btn.next { right: 5px; }
+
+  /* 外層佈局容器 */
+  .page-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 30px;
+    padding: 20px;
+    max-width: 1300px;
+    margin: 0 auto;
+    font-family: "Microsoft JhengHei", sans-serif;
+  }
+
+  /* =========================================
+     過往活動 (相片網格佈局)
+     ========================================= */
+  
+  /* 1. 網格外層容器 */
+  .photo-grid-container {
+    display: grid;
+    /* 使用 auto-fit 與 minmax 實現響應式：最小寬度 300px，空間夠時自動並排 */
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 25px; /* 卡片之間的間距 */
+    margin-top: 20px;
+  }
+
+  /* 2. 讓描述文字跨越所有列，避免被擠在一格內 */
+  .grid-description {
+    grid-column: 1 / -1;
+    margin-bottom: 10px;
+    color: #444;
+    line-height: 1.6;
+  }
+
+  /* 3. 卡片按鈕本體設計 */
+  .photo-frame-btn {
+    display: block;
+    text-decoration: none; /* 移除預設的超連結底線 */
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden; /* 確保圖片不會超出圓角邊框 */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* 加入輕微陰影提升立體感 */
+    transition: transform 0.3s ease, box-shadow 0.3s ease; /* 加入過渡動畫 */
+  }
+
+  /* 懸停效果：滑鼠移過去時卡片微幅浮起 */
+  .photo-frame-btn:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+  }
+
+  /* 4. 圖片容器 (固定比例) */
+  .image-container {
+    width: 100%;
+    aspect-ratio: 16 / 10; /* 強制統一圖片比例，避免不同長寬的圖片破壞版面 */
+    overflow: hidden;
+  }
+
+  /* 圖片屬性設定 */
+  .image-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* 讓圖片完整填滿且不變形（會自動裁切多餘部分） */
+    display: block;
+    transition: transform 0.3s ease;
+  }
+
+  /* 懸停效果：滑鼠移過去時圖片微微放大 */
+  .photo-frame-btn:hover .image-container img {
+    transform: scale(1.05);
+  }
+
+  /* 5. 標題文字區塊 */
+  .caption {
+    text-align: center;
+    padding: 15px 10px;
+    color: #003399; /* 貼近你附圖中的深藍色字體 */
+    font-weight: bold;
+    font-size: 1.1em;
+    letter-spacing: 1px;
+  }
+
+  /* 預設隱藏第 6 個活動以後的卡片 
+     (註：因為 .grid-description 佔了第 1 個位置，所以從第 8 個子元素開始隱藏) */
+  .photo-grid-container .photo-frame-btn:nth-child(n+8) {
+    display: none;
+  }
+
+  /* 當容器被加上 show-all 類別時，解除隱藏 */
+  .photo-grid-container.show-all .photo-frame-btn:nth-child(n+8) {
+    display: block;
+    animation: fadeIn 0.4s ease-in; /* 沿用你原本寫好的 fadeIn 動畫 */
+  }
+
+  /* 按鈕外層置中 */
+  .load-more-container {
+    text-align: center;
+    margin-top: 30px;
+    width: 100%;
+  }
+
+  /* 按鈕視覺設計 */
+  .action-btn {
+    background-color: #4a90e2;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    font-size: 1.05em;
+    font-weight: bold;
+    border-radius: 25px; /* 圓角膠囊形狀 */
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(74, 144, 226, 0.2);
+  }
+
+  .action-btn:hover {
+    background-color: #357abd;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(74, 144, 226, 0.3);
+  }
+
+  /* =========================================
+     左側導航欄 (已優化子分類結構)
+     ========================================= */
+  .sidebar {
+    width: 200px;
+    flex-shrink: 0;
+    background-color: #f8f9fa;
+    padding: 0;
+    border-radius: 8px;
+    border: 1px solid #eee;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  }
+
+  .nav-header {
+    padding: 20px;
+    background-color: #ffffff;
+    color: #4a90e2;
+    font-weight: bold;
+    font-size: 1.2em;
+    text-align: center;
+    border-bottom: 2px solid #4a90e2;
+  }
+
+  .sidebar > ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .sidebar > ul > li {
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    transition: all 0.3s ease;
+    color: #333;
+    position: relative;
+  }
+
+  .sidebar > ul > li > span {
+    display: block;
+    padding: 15px 20px;
+    transition: all 0.3s ease;
+  }
+
+  .sidebar > ul > li:hover {
+    background-color: #eef5ff;
+    color: #4a90e2;
+  }
+
+  .sidebar > ul > li:hover > span {
+    padding-left: 25px;
+  }
+
+  /* =========================================
+     子分類 (Submenu) 專屬樣式
+     ========================================= */
+  .sidebar .submenu {
+    display: none;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    background-color: #f1f3f5;
+  }
+
+  .sidebar .submenu li {
+    padding: 12px 20px 12px 35px;
+    border-bottom: 1px solid #e9ecef;
+    font-size: 0.95em;
+    color: #555;
+    transition: all 0.2s ease;
+  }
+
+  .sidebar .submenu li:hover {
+    background-color: #e2eafd;
+    color: #4a90e2;
+    padding-left: 42px;
+  }
+
+  .sidebar > ul > li.has-submenu:hover .submenu {
+    display: block;
+  }
+
+  /* 右側內容容器 */
+  .main-content {
+    flex: 1;
+    width: 100%;
+    background: #fff;
+    padding: 30px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    min-height: 400px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  }
+
+  /* 預設隱藏所有頁面內容 */
+  .page-content {
+    display: none;
+    animation: fadeIn 0.4s;
+  }
+
+  #home {
+    display: block;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* =========================================
+     【全新新增】媒體報道專屬樣式 
+     ========================================= */
+     .media-carousel-wrapper {
+    position: relative;
+    background-color: #eeeeee;
+    padding: 20px 40px; /* 留出左右空間給箭頭 */
+    border-radius: 8px;
+    margin-top: 20px;
+    overflow: hidden; /* 隱藏超出範圍的輪播卡片 */
+  } 
+
+  .media-grid {
+    display: grid;
+    /* 電腦版 3 欄，手機版自動變成 1 欄 */
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    width: 100%;
+  }
+
+  .media-slide-page {
+    padding: 5px; /* 避免卡片的陰影被容器切掉 */
+  }
+
+   /* 將整張卡片設為超連結，體驗更好 */
+  .media-card {
+    background-color: #fff;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    text-decoration: none; /* 移除超連結預設底線 */
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    height: 100%; /* 讓同一列的卡片等高 */
+  }
+
+  .media-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+  }
+
+  .media-card-img {
+    width: 100%;
+    height: 180px;
+    overflow: hidden;
+  }
+
+  .media-card-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+
+  /* 懸停時圖片微微放大 */
+  .media-card:hover .media-card-img img {
+    transform: scale(1.05);
+  }
+
+  .media-card-content {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+    min-height: 80px;
+  }
+
+  .media-card-text {
+    color: #213b70; /* 對應原圖深藍色 */
+    text-align: center;
+    font-size: 0.95em;
+    line-height: 1.5;
+  }
+
+  /* 懸停時文字變色並加上底線 */
+  .media-card:hover .media-card-text {
+    color: #4a90e2;
+    text-decoration: underline;
+  }
+
+  /* 專屬左右箭頭 */
+  .media-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    color: #001f5b;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 10;
+    padding: 10px;
+    transition: opacity 0.2s;
+  }
+
+  .media-btn:hover {
+    opacity: 0.6;
+  }
+
+  .media-btn.prev { left: 0px; }
+  .media-btn.next { right: 0px; }
+
+  /* =========================================
+     課程與學術聯繫 - 3x3 相簿專屬樣式
+     ========================================= */
+  .curriculum-album {
+    display: grid;
+    /* 強制設定為 3 欄等寬，形成 3x3 的網格基礎 */
+    grid-template-columns: repeat(3, 1fr); 
+    gap: 15px; /* 照片之間的間隔 */
+    margin-top: 30px;
+  }
+
+  .curriculum-album-item {
+    width: 100%;
+    /* 設定為 1/1 也就是正方形，讓相簿看起來像九宮格般整齊 */
+    aspect-ratio: 1 / 1; 
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    background-color: #f0f0f0; /* 圖片尚未載入時的底色 */
+  }
+
+  .curriculum-album-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* 確保圖片填滿正方形且不變形 */
+    display: block;
+    transition: transform 0.4s ease;
+  }
+
+  /* 滑鼠懸停時的圖片微微放大效果 */
+  .curriculum-album-item:hover img {
+    transform: scale(1.08);
+  }
+
+  /* =========================================
+     彈出視窗 (Lightbox) 專屬樣式
+     ========================================= */
+  .modal {
+    display: none; /* 預設為隱藏 */
+    position: fixed;
+    z-index: 9999; /* 確保蓋在所有畫面元素的最上層 */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85); /* 半透明黑色背景 */
+    backdrop-filter: blur(5px); /* 背景微微模糊，增加質感 */
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .modal.show {
+    opacity: 1;
+  }
+
+  /* 彈出視窗內的圖片 */
+  .modal-content {
+    max-width: 90%;
+    max-height: 90%;
+    border-radius: 8px;
+    box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+    transform: scale(0.8); /* 初始稍微縮小 */
+    transition: transform 0.3s ease;
+  }
+
+  /* 當彈出視窗顯示時，圖片放大至原比例 */
+  .modal.show .modal-content {
+    transform: scale(1);
+  }
+
+  /* 關閉按鈕 */
+  .close-btn {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    color: white;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.3s ease;
+    z-index: 10000;
+  }
+
+  .close-btn:hover {
+    color: #4a90e2; /* 懸停時變成網站的主題藍色 */
+  }
+
+  /* 彈出視窗的左右切換按鈕 */
+  .modal-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    padding: 16px 22px;
+    font-size: 28px;
+    cursor: pointer;
+    z-index: 10000;
+    border-radius: 8px;
+    transition: background 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+
+  .modal-nav-btn:hover {
+    background: rgba(74, 144, 226, 0.85); /* 懸停時變成主題藍色 */
+  }
+
+  .modal-prev {
+    left: 25px;
+  }
+
+  .modal-next {
+    right: 25px;
+  }
+
+  /* 手機版適配：縮小按鈕尺寸與邊距 */
+  @media (max-width: 768px) {
+    .modal-nav-btn {
+      padding: 10px 14px;
+      font-size: 20px;
+    }
+    .modal-prev { left: 10px; }
+    .modal-next { right: 10px; }
+  }
+
+  /* 讓相簿裡的圖片游標變成放大鏡，提示使用者可以點擊 */
+  .curriculum-album-item {
+    cursor: zoom-in;
+  }
+
+  /* 移動裝置適配 (響應式設計 RWD) */
+  @media (max-width: 768px) {
+    .page-layout {
+      flex-direction: column;
+      padding: 10px;
+      gap: 15px;
+    }
+
+    .sidebar {
+      width: 100%;
+    }
+
+    .sidebar > ul {
+      display: flex;
+      flex-wrap: wrap;
+    }
+
+    .sidebar > ul > li {
+      flex: 1 1 50%;
+      text-align: center;
+      border-bottom: 1px solid #eee;
+      border-right: 1px solid #eee;
+    }
+    
+    .sidebar > ul > li.has-submenu {
+      flex: 1 1 100%;
+      border-right: none;
+      text-align: left;
+    }
+
+    .sidebar > ul > li:nth-child(even) {
+      border-right: none;
+    }
+
+    .sidebar > ul > li > span {
+      padding: 12px 10px;
+    }
+    
+    .sidebar > ul > li:hover > span {
+      padding-left: 10px; 
+    }
+
+    .sidebar .submenu li {
+      text-align: left;
+      padding: 12px 25px;
+    }
+    .sidebar .submenu li:hover {
+      padding-left: 25px;
+    }
+
+    .curriculum-album {
+      /* 手機版空間較小，改為自動適應寬度 (約 2 欄或單欄) */
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+    }
+  }
+</style>
+
+<div class="page-layout">
+  <nav class="sidebar">
+    <div class="nav-header">導航選單</div>
+    <ul>
+      <li class="has-submenu">
+        <span onclick="showPage('home')">有關本中心</span>
+        <ul class="submenu">
+          <li onclick="event.stopPropagation(); showPage('Cross')">跨學科學習</li>
+          <li onclick="event.stopPropagation(); showPage('Community')">社區關懷</li>
+        </ul>
+      </li>
+      <li class="has-submenu">
+        <span onclick="showPage('Romaine')">館内植物</span>
+        <ul class="submenu">
+          <li onclick="event.stopPropagation(); showPage('Romaine')">羅馬生菜</li>
+          <li onclick="event.stopPropagation(); showPage('Rosemary')">迷迭香</li>
+          <li onclick="event.stopPropagation(); showPage('LolloRosso')">紅珊瑚生菜</li>
+          <li onclick="event.stopPropagation(); showPage('Oakleaf')">橡葉生菜</li>
+          <li onclick="event.stopPropagation(); showPage('Butterhead')">牛油生菜</li>
+          <li onclick="event.stopPropagation(); showPage('LemonBasil')">檸檬羅勒</li>
+          <li onclick="event.stopPropagation(); showPage('Mint')">薄荷</li>
+        </ul>
+      </li>
+      
+      <li class="has-submenu">
+        <span onclick="showPage('past-event')">上學年社區服務</span>
+      </li>
+      
+      <li onclick="showPage('event')"><span>本學年活動</span></li>
+      <li onclick="showPage('curriculum')"><span>課程與學術聯繫</span></li>
+      <li onclick="showPage('Service')"><span>水耕大使及公益少年團</span></li>
+    </ul>
+  </nav>
+
+  <main class="main-content">
+    <div id="home" class="page-content">
+      <h2 style="color: #4a90e2;">智慧農業研習中心</h2>
+      <h2 style="color: #4a90e2;">結合科技、學術與社區關懷的綠色基地</h2>
+      <hr>
+      <h3 style="color: #4a90e2;">中心背景與理念</h3>
+      <hr>
+      <img src="sites/default/files/Hydro_Main.JPG" alt="Romaine" style="width: 100%; max-width: 600px; display: block; margin: 0 auto; border-radius: 8px;">
+      <p>為配合學科及國家安全教育課程、鞏固同學不同的價值觀，實踐所學，本校於2026年1月設立「智慧農業學習中心」。</p>
+      <p>同學透過不同的課程，學習種植的科學、運用農作物服務社會弱勢社群及營商，沉浸式體驗及實踐在智慧農業學習中心的課程所學，建立正面價值觀。
+        智慧農業學習中心的培植箱設實時直播，供各位進行觀察。</p>  
+      <p>研習中心全面採用無土水耕種植技術（Hydroponics），在受控的優質環境下，精選種植 7 種兼具食用價值與特色香氣的植物：
+       <p><span style="font-weight: 900; font-size: 1.15em;">植物簡介：</span></p> 
+        <ul class="content-list">
+          <li>羅馬生菜(Romaine)</li>
+          <li>迷迭香(Rosemary)</li>
+          <li>紅珊瑚生菜(Lollo Rosso)</li>
+          <li>橡葉生菜(Oakleaf)</li>
+          <li>牛油生菜(Butterhead)</li>
+          <li>檸檬羅勒(Lemon Basil)</li>
+          <li>薄荷(Mint)</li>
+        </ul>
+      </p>     
+    </div>
+
+    <div id="Cross" class="page-content">
+      <h2 style="color: #4a90e2;">跨學科學習：由科學理論到商業實踐</h2>
+      <hr>
+      <p>智慧農業研習中心不僅是種植空間，更是高中學生的活生生實驗室與課堂：</p><br>
+      <p><span style="font-weight: 900; font-size: 1.15em;">科學與理論應用（生物科與化學科）：</span></p><br>
+      <p>高中生物科及化學科學生會利用研習中心的設施進行科學實驗。學生能將課本知識轉化為實務技能，
+        例如親手精確調配合適濃度的植物營養液（Nutrient Solution）、
+        監測酸鹼度（pH值）與電導率（EC值），探索最有利於不同植物生長的環境因子。
+      </p><br>
+      <p><span style="font-weight: 900; font-size: 1.15em;">商業與營銷實踐（商科）：</span></p><br>
+      <p>高中商科學生則以研習中心生產的無毒優質農作物為實體對象，學習將農作物包裝、定價及推廣。學生透過真實的銷售過程，
+        掌握市場推廣策略、成本控制及供應鏈管理，體驗「由農場到市場」（Farm-to-Market）的商業運作。
+      </p><br>
+    </div>
+
+    <div id="Community" class="page-content">
+      <h2 style="color: #4a90e2;">社區關懷：播下愛心，回饋社會</h2>
+      <hr>
+      <p>研習中心也是推動生命教育與關愛文化的重要基地：</p><br>
+      <p><span style="font-weight: 900; font-size: 1.15em;">播種與分享（公益少年團與水耕大使）：</span></p><br>
+      <p>校內的公益少年團及水耕大使負責研習中心農作物的日常照顧與收成。
+        他們會將親手種植的鮮美蔬菜與香草打包，親自送往社區內的長者中心等機構，為社區長者送上暖心與健康。
+      </p><br>
+      <p><span style="font-weight: 900; font-size: 1.15em;">創新軟餐製作：</span></p><br>
+      <p>為了照顧有吞嚥困難的長者，學生更會利用中心種植的鮮嫩蔬菜與香草作為原料，
+        參與製作營養豐富且美味的「軟餐」（Soft Meals）送給長者，讓長者在安全進食的同時，也能享受新鮮食材的風味與尊嚴。
+      </p><br>
+    </div>
+
+    <div id="Romaine" class="page-content">
+      <h2 style="color: #4a90e2;">羅馬生菜 (Romaine)</h2>
+      <hr>
+      <img src="sites/default/files/Hydro_1.png" alt="Romaine" style="width: 100%; max-width: 600px; display: block; margin: 0 auto; border-radius: 8px;">
+      <p><span style="font-weight: 900; font-size: 1.15em;">植物簡介：</span></p><br>
+      <p>葉片直立呈長橢圓形，質地爽脆、多汁，帶有淡淡苦甜味。
+        是凱撒沙律（Caesar Salad）最經典的核心食材，亦非常適合打成蔬菜汁或稍微清炒。
+      </p><br>
+      <p><span style="font-weight: 900; font-size: 1.15em;">營養價值： </span></p><br>
+      <p>富含維生素 A、維生素 K、葉酸（Folate）及維生素 C。含水量高且極低熱量，有助維護視力、骨骼健康與促進腸胃蠕動。
+      </p><br>
+    </div>
+
+    <div id="Rosemary" class="page-content">
+      <h2 style="color: #4a90e2;">迷迭香 (Rosemary)</h2>
+      <hr>
+      <img src="sites/default/files/Hydro_2.png" alt="Rosemary" style="width: 100%; max-width: 600px; display: block; margin: 0 auto; border-radius: 8px;">
+      <p><span style="font-weight: 900; font-size: 1.15em;">植物簡介：</span></p><br>
+      <p>為多年生木本香草，針狀葉片帶有強烈的松香、木質香與微辛口感。常用於煎烤肉類（如羊排、牛排）、牛油調味及烘焙歐式麵包（如無花果或迷迭香佛卡夏）。
+      </p><br>
+      <p><span style="font-weight: 900; font-size: 1.15em;">營養價值： </span></p><br>
+      <p>含有豐富的迷迭香酸（Rosmarinic acid）和鼠尾草酸（Carnosic acid）等強效抗氧化物，具備良好的抗炎、抗菌作用，有助於促進血液循環與保護神經系統。
+      </p><br>
+    </div>
+
+    <div id="LolloRosso" class="page-content">
+      <h2 style="color: #4a90e2;">紅珊瑚生菜 (Lollo Rosso)</h2>
+      <hr>
+      <img src="sites/default/files/Hydro_3.png" alt="Lollo Rosso" style="width: 100%; max-width: 600px; display: block; margin: 0 auto; border-radius: 8px;">
+      <p><span style="font-weight: 900; font-size: 1.15em;">植物簡介：</span></p><br>
+      <p>葉片邊緣高度波浪捲曲，呈現綠色至深紫紅色的漸層。質地柔嫩且細緻，風味微苦，因造型美觀常作為綜合沙律的配色與口感層次擔當。
+      </p><br>
+      <p><span style="font-weight: 900; font-size: 1.15em;">營養價值： </span></p><br>
+      <p>深色葉片蘊含大量的花青素（Anthocyanins）與多酚類化合物，抗氧化能力顯著；同時提供維生素 A、維生素 C 及膳食纖維，有助心血管健康。
+      </p><br>
+    </div>
+
+    <div id="Oakleaf" class="page-content">
+      <h2 style="color: #4a90e2;">橡葉生菜 (Oakleaf)</h2>
+      <hr>
+      <img src="sites/default/files/Hydro_4.png" alt="Oakleaf" style="width: 100%; max-width: 600px; display: block; margin: 0 auto; border-radius: 8px;">
+      <p><span style="font-weight: 900; font-size: 1.15em;">植物簡介：</span></p><br>
+      <p>因葉片邊緣呈羽狀深裂、酷似橡樹葉片而得名，分為紅橡葉與綠橡葉。質地柔軟滑嫩，口感帶有些許天然堅果香氣，容易吸附沙律醬汁。
+      </p><br>
+      <p><span style="font-weight: 900; font-size: 1.15em;">營養價值： </span></p><br>
+      <p>富含 β-胡蘿蔔素（維生素 A 前體）、維生素 K、鉀與鐵質。紅橡葉品種額外含有花青素，能提供額外的抗氧化防護與維護血液健康。
+      </p><br>
+    </div>
+
+    <div id="Butterhead" class="page-content">
+      <h2 style="color: #4a90e2;">牛油生菜 (Butterhead)</h2>
+      <hr>
+      <img src="sites/default/files/Hydro_5.png" alt="Butterhead" style="width: 100%; max-width: 600px; display: block; margin: 0 auto; border-radius: 8px;">
+      <p><span style="font-weight: 900; font-size: 1.15em;">植物簡介：</span></p><br>
+      <p>包球較鬆散，葉片寬大柔軟、觸感如奶油般細緻滑順，味道甘甜不苦。極適合做為漢堡生菜底、包裹肉類（如韓式包肉）或製作精緻沙律。
+      </p><br>
+      <p><span style="font-weight: 900; font-size: 1.15em;">營養價值： </span></p><br>
+      <p>含有豐富的維生素 A、維生素 K、葉酸以及鉀、鐵等礦物質，對維護免疫力、調節血壓及維持正常的凝血功能有正面效益。
+      </p><br>
+    </div>
+
+    <div id="LemonBasil" class="page-content">
+      <h2 style="color: #4a90e2;">檸檬羅勒 (Lemon Basil)</h2>
+      <hr>
+      <img src="sites/default/files/Hydro_6.png" alt="Lemon Basil" style="width: 100%; max-width: 600px; display: block; margin: 0 auto; border-radius: 8px;">
+      <p><span style="font-weight: 900; font-size: 1.15em;">植物簡介：</span></p><br>
+      <p>羅勒的栽培變種，兼具九層塔/甜羅勒的辛香與獨特鮮明的檸檬柑橘香氣。常用於東南亞料理（如泰式海鮮湯、咖哩）、海鮮去腥或直接沖泡清涼草本茶。
+      </p><br>
+      <p><span style="font-weight: 900; font-size: 1.15em;">營養價值： </span></p><br>
+      <p>富含維生素 A、維生素 C 及鈣質，並含有檸檬烯（Limonene）與丁香油酚（Eugenol）等揮發性芳香油，具備天然抗菌、舒緩消化不良與減緩壓力的作用。
+      </p><br>
+    </div>
+
+    <div id="Mint" class="page-content">
+      <h2 style="color: #4a90e2;">薄荷 (Mint)</h2>
+      <hr>
+      <img src="sites/default/files/Hydro_7.png" alt="Mint" style="width: 100%; max-width: 600px; display: block; margin: 0 auto; border-radius: 8px;">
+      <p><span style="font-weight: 900; font-size: 1.15em;">植物簡介：</span></p><br>
+      <p>為多年生草本植物，品種繁多（常見如椒樣薄荷 Peppermint 與留蘭香 Spearmint）。葉片含有天然薄荷醇（Menthol）
+        ，帶有極具標誌性的清涼口感與強烈清香。廣泛應用於調飲（如 Mojito）、甜點裝飾、東南亞與中東料理，或直接沖泡清新草本茶。
+      </p><br>
+      <p><span style="font-weight: 900; font-size: 1.15em;">營養價值： </span></p><br>
+      <p>富含維生素 A、鐵質、錳質及多酚類抗氧化物。其中的薄荷醇成分能顯著舒緩腸胃平滑肌，
+        有助緩解腹脹與消化不良；同時具備提神醒腦、舒緩呼吸道不適與清新口氣的作用。
+      </p><br>
+    </div>
+
+    <div id="past-event" class="page-content">
+      <h2 style="color: #4a90e2;">上學年社區服務</h2>
+      <hr>
+      <p><span style="font-weight: 900; font-size: 1.15em;">水耕大使與長者跨代共煮 共學 共享</span></p><br>
+      <p>於2025-2026學年，本校水耕大使及公益少年團與青協合作，
+        利用智慧農業研習中心的農作物，經過註冊營養師的專業意見，就長者的營養所需編制餐單，並於08/07/2026與長者一同烹調享用。</p>
+      <p>於過程中，本校學生與長者分享水耕的心得及植物的營養價值，並交流煮食心得。在活動最後，學生與長者一起享用烹調所得的檸檬羅勒意大利粉。</p>
+      <div class="gallery-container">
+        <div class="slider" id="image-slider">
+           <div class="slide"><img src="sites/default/files/Hydro_Community_1.jpeg" alt="1"></div>
+           <div class="slide"><img src="sites/default/files/Hydro_Community_2.jpeg" alt="2"></div>
+           <div class="slide"><img src="sites/default/files/Hydro_Community_3.jpeg" alt="3"></div>
+           <div class="slide"><img src="sites/default/files/Hydro_Community_4.jpeg" alt="4"></div>
+           <div class="slide"><img src="sites/default/files/Hydro_Community_5.jpeg" alt="5"></div>
+           <div class="slide"><img src="sites/default/files/Hydro_Community_6.jpeg" alt="6"></div>
+           <div class="slide"><img src="sites/default/files/Hydro_Community_7.jpeg" alt="7"></div>
+           <div class="slide"><img src="sites/default/files/Hydro_Community_8.jpeg" alt="8"></div>
+           <div class="slide"><img src="sites/default/files/Hydro_Community_9.jpeg" alt="9"></div>
+        </div>
+        <button class="btn prev" onclick="moveSlide(-1, 'image-slider')">❮</button>
+        <button class="btn next" onclick="moveSlide(1, 'image-slider')">❯</button>
+      </div>
+    </div>
+
+    <div id="event" class="page-content">
+      <h2 style="color: #4a90e2;">本學年活動</h2>
+      <hr>
+      <p>於2026年9月9日，本校水耕大使到訪東華三院梁昌紀念安老院，探訪長者、與他們玩遊戲及了解他們的營養需要，
+        並於長者一起進行農作物的播種。學生之後就長者的營養需要與營養師會面，並計劃使用智慧農業研習中心的農作物製作軟餐贈予長者。
+      </p>
+      <div class="curriculum-album">
+        <div class="curriculum-album-item"><img src="sites/default/files/Hydro_Community27_1.jpg" alt="服務照片 1" onclick="openModal(this.src)"></div>
+        <div class="curriculum-album-item"><img src="sites/default/files/Hydro_Community27_2.JPG" alt="服務照片 2" onclick="openModal(this.src)"></div>
+        <div class="curriculum-album-item"><img src="sites/default/files/Hydro_Community27_3.jpg" alt="服務照片 3" onclick="openModal(this.src)"></div>
+      </div>
+    </div>
+
+    <div id="curriculum" class="page-content">
+      <h2 style="color: #4a90e2;">課程與學術聯繫</h2>
+      <hr>
+      <p>就讀化學科和生物科的高中學生利用智慧農業研習中心學習與化學科及生物科相關的水耕知識，
+        例如使用pH計和電導計等儀器測量營養液中的離子濃度，並根據植物所需調配合適濃度的營養營。
+      </p>
+      <p>在2026年10月8日，修讀化學科和生物科的中四學生在實驗室學習水耕種植的科學知識，
+        並進行探究實驗使用特定的儀器測量並記錄營養液的濃度，然後根據營養液的濃度分析其對植物生長的影響。
+      </p>
+      <p>
+        此外，就讀商科的高中學生在2026年10月10日亦修讀了與營商有關的課程，學習把智慧農業研習中心的農作物進行推銷及銷售。
+      </p>
+      <div class="curriculum-album">
+        <div class="curriculum-album-item"><img src="sites/default/files/Hydro_Curriculum_1.jpg" alt="課程照片 1" onclick="openModal(this.src)"></div>
+        <div class="curriculum-album-item"><img src="sites/default/files/Hydro_Curriculum_2.jpg" alt="課程照片 2" onclick="openModal(this.src)"></div>
+        <div class="curriculum-album-item"><img src="sites/default/files/Hydro_Curriculum_3.jpg" alt="課程照片 3" onclick="openModal(this.src)"></div>
+        
+        <div class="curriculum-album-item"><img src="sites/default/files/Hydro_Curriculum_4.jpg" alt="課程照片 4" onclick="openModal(this.src)"></div>
+        <div class="curriculum-album-item"><img src="sites/default/files/Hydro_Curriculum_5.jpg" alt="課程照片 5" onclick="openModal(this.src)"></div>
+        <div class="curriculum-album-item"><img src="sites/default/files/Hydro_Curriculum_6.jpg" alt="課程照片 6" onclick="openModal(this.src)"></div>
+      </div>  
+    </div>
+
+     <div id="Service" class="page-content">
+      <h2 style="color: #4a90e2;">水耕大使及公益少年團</h2>
+      <hr>
+      <p>
+        本校公益少年團與水耕大使於智慧農業研習中心恆常集會，學習水耕知識及操作流程，
+        並輪流當值照顧農作物。此外，水耕大使亦會定時對外開放智慧農業研習中心，並向參觀者介紹智慧農業研習中心的運作流程及各種農作物。
+      </p>
+      <div class="curriculum-album">
+        <div class="curriculum-album-item"><img src="sites/default/files/Hydro_Service_1.JPG" alt="課程照片 1" onclick="openModal(this)"></div>
+        <div class="curriculum-album-item"><img src="sites/default/files/Hydro_Service_2.JPG" alt="課程照片 2" onclick="openModal(this)"></div>
+        <div class="curriculum-album-item"><img src="sites/default/files/Hydro_Service_3.jpg" alt="課程照片 3" onclick="openModal(this)"></div>
+        
+        <div class="curriculum-album-item"><img src="sites/default/files/Hydro_Service_4.jpg" alt="課程照片 4" onclick="openModal(this)"></div>
+        <div class="curriculum-album-item"><img src="sites/default/files/Hydro_Service_5.jpg" alt="課程照片 5" onclick="openModal(this)"></div>
+        <div class="curriculum-album-item"><img src="sites/default/files/Hydro_Service_6.jpg" alt="課程照片 6" onclick="openModal(this)"></div>
+
+        <div class="curriculum-album-item"><img src="sites/default/files/Hydro_Service_7.JPG" alt="課程照片 7" onclick="openModal(this)"></div>
+        <div class="curriculum-album-item"><img src="sites/default/files/Hydro_Service_8.jpg" alt="課程照片 8" onclick="openModal(this)"></div>
+        <div class="curriculum-album-item"><img src="sites/default/files/Hydro_Service_9.jpg" alt="課程照片 9" onclick="openModal(this)"></div>
+      </div>  
+    </div> <!-- 結束 media 的 page-content 區塊 -->
+
+
+    <div id="imageModal" class="modal" onclick="closeModal()">
+      <span class="close-btn" onclick="closeModal()">&times;</span>
+      <button class="modal-nav-btn modal-prev" onclick="event.stopPropagation(); changeModalImage(-1)">&#10094;</button>
+      <img class="modal-content" id="modalImg" onclick="event.stopPropagation()"> 
+      <button class="modal-nav-btn modal-next" onclick="event.stopPropagation(); changeModalImage(1)">&#10095;</button>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  function showPage(pageId) {
+    const pages = document.querySelectorAll('.page-content');
+    pages.forEach(page => {
+      page.style.display = 'none';
+    });
+    document.getElementById(pageId).style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // 【修復】加入 'student-text-slider': 0 來初始化學生的文字輪播狀態
+  const sliderStates = {
+    'image-slider': 0,
+    'video-slider': 0,
+    'director-text-slider': 0,
+    'student-text-slider': 0  // <--- 增加這一行
+  };
+
+  function moveSlide(direction, sliderId) {
+    const slider = document.getElementById(sliderId);
+    const slides = slider.querySelectorAll('.slide'); 
+    const totalSlides = slides.length;
+
+    // 【建議優化】自動初始化未知 slider 的狀態，避免未來新增輪播圖時又忘記設定
+    if (sliderStates[sliderId] === undefined) {
+      sliderStates[sliderId] = 0;
+    }
+
+    sliderStates[sliderId] += direction;
+
+    if (sliderStates[sliderId] < 0) {
+      sliderStates[sliderId] = totalSlides - 1;
+    } else if (sliderStates[sliderId] >= totalSlides) {
+      sliderStates[sliderId] = 0;
+    }
+
+    const offset = sliderStates[sliderId] * -100;
+    slider.style.transform = `translateX(${offset}%)`;
+  }
+
+  function toggleMoreEvents() {
+    const gridContainer = document.querySelector('.photo-grid-container');
+    const btn = document.getElementById('loadMoreBtn');
+    
+    // 切換 show-all 類別
+    gridContainer.classList.toggle('show-all');
+    
+    // 根據狀態更改按鈕文字與視角滾動
+    if (gridContainer.classList.contains('show-all')) {
+      btn.innerText = '隱藏部分活動';
+    } else {
+      btn.innerText = '載入更多活動';
+      // 縮起時，自動將畫面平滑滾動回過往活動的標題處，避免使用者迷失方向
+      document.getElementById('past-event').scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
+  // 用來儲存目前開啟的相簿圖片清單與當前索引
+  let currentGalleryImages = [];
+  let currentModalIndex = 0;
+
+  // 開啟彈出視窗並載入對應圖片（同時兼容傳入 this 或 this.src）
+  function openModal(target) {
+    const modal = document.getElementById("imageModal");
+    const modalImg = document.getElementById("modalImg");
+    
+    let clickedImg = null;
+    if (typeof target === 'string') {
+      // 如果 HTML 維持寫 openModal(this.src)，自動尋找目前顯示頁面中的對應圖片元素
+      const allImgs = Array.from(document.querySelectorAll('.curriculum-album img'));
+      clickedImg = allImgs.find(img => img.src === target);
+    } else {
+      clickedImg = target;
+    }
+
+    if (clickedImg) {
+      // 抓取該圖片所屬相簿 (.curriculum-album) 內的所有圖片
+      const album = clickedImg.closest('.curriculum-album');
+      if (album) {
+        currentGalleryImages = Array.from(album.querySelectorAll('img')).map(img => img.src);
+        currentModalIndex = currentGalleryImages.indexOf(clickedImg.src);
+      } else {
+        currentGalleryImages = [clickedImg.src];
+        currentModalIndex = 0;
+      }
+      modalImg.src = clickedImg.src;
+    } else {
+      // 備用方案
+      currentGalleryImages = [target];
+      currentModalIndex = 0;
+      modalImg.src = target;
+    }
+    
+    // 先將 display 設為 flex 顯示元素
+    modal.style.display = "flex"; 
+    
+    // 稍微延遲一點點加上 show class，這樣 CSS 動畫才會順利觸發
+    setTimeout(() => {
+      modal.classList.add("show");
+    }, 10);
+  }
+
+  // 切換上一張 / 下一張圖片
+  function changeModalImage(direction) {
+    if (currentGalleryImages.length <= 1) return;
+
+    currentModalIndex += direction;
+
+    // 循環播放：第一張往前會跳到最後一張；最後一張往後會跳回第一張
+    if (currentModalIndex < 0) {
+      currentModalIndex = currentGalleryImages.length - 1;
+    } else if (currentModalIndex >= currentGalleryImages.length) {
+      currentModalIndex = 0;
+    }
+
+    const modalImg = document.getElementById("modalImg");
+    modalImg.src = currentGalleryImages[currentModalIndex];
+  }
+
+  // 關閉彈出視窗
+  function closeModal() {
+    const modal = document.getElementById("imageModal");
+    
+    // 移除 show class 觸發縮小與淡出動畫
+    modal.classList.remove("show");
+    
+    // 等待動畫播放完畢 (約 300 毫秒) 後，再將 display 設回 none
+    setTimeout(() => {
+      if (!modal.classList.contains("show")) {
+        modal.style.display = "none";
+      }
+    }, 300);
+  }
+
+  // （額外優化）支援鍵盤左右方向鍵切換圖片、ESC 鍵關閉視窗
+  document.addEventListener('keydown', function(event) {
+    const modal = document.getElementById("imageModal");
+    if (modal.classList.contains("show")) {
+      if (event.key === "ArrowLeft") {
+        changeModalImage(-1);
+      } else if (event.key === "ArrowRight") {
+        changeModalImage(1);
+      } else if (event.key === "Escape") {
+        closeModal();
+      }
+    }
+  });
+</script>
